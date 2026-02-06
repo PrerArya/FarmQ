@@ -17,12 +17,14 @@ An AI-powered web application to help farmers detect plant diseases, get persona
 
 ## 🧑‍💻 Tech Stack
 
-| Layer       | Tech                         |
-|------------|------------------------------|
-| Frontend   | React.js, Lucide Icons       |
-| Backend    | FastAPI, WebSockets, Python  |
-| AI Models  | ResNet9 (PyTorch), ML Classifiers |
-| Extras     | React Webcam, Dropzone, TTS  |
+| Layer       | Tech                                     |
+|------------|------------------------------------------|
+| Frontend   | React.js, Lucide Icons                   |
+| Backend    | FastAPI, WebSockets, Python              |
+| AI Runtime | Amazon Bedrock (Claude 3 Sonnet default) |
+| Dev Assist | Amazon Q (developer productivity)        |
+| Models     | ResNet9 (PyTorch), ML Classifiers        |
+| Extras     | React Webcam, Dropzone, TTS              |
 
 ---
 
@@ -44,6 +46,12 @@ source venv/bin/activate  # or venv\Scripts\activate on Windows
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Export AWS creds and model for Amazon Bedrock
+export AWS_REGION=us-east-1
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+export BEDROCK_MODEL_ID=anthropic.claude-3-sonnet-20240229-v1:0
 
 # Run the server
 uvicorn app:app --reload
@@ -84,11 +92,6 @@ Disease Detection: ResNet9 trained on plant disease dataset
 
 Fertilizer Prediction: Scikit-learn classifier trained on crop-soil data
 
-🔗 Connect With Us
-
-LinkedIn: 
-1. [Abhishek Jain](https://www.linkedin.com/in/abhishek-jain2000/)
-2. [Tochi Obuzor](https://www.linkedin.com/in/tochi-obuzor/)
 
 
 

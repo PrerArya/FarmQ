@@ -3,6 +3,8 @@ import "./App.css";
 
 function App() {
   const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -185,6 +187,34 @@ function App() {
     }
   };
 
+  const sendTextMessage = async (evt) => {
+    evt.preventDefault();
+    const prompt = input.trim();
+    if (!prompt) return;
+    setIsSending(true);
+    setMessages((prev) => [...prev, { text: prompt, sender: "user", partial: false }]);
+    setInput("");
+    try {
+      const res = await fetch("http://localhost:8000/api/bedrock-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: prompt }),
+      });
+      const data = await res.json();
+      if (data?.response) {
+        setMessages((prev) => [...prev, { text: data.response, sender: "bot", partial: false }]);
+        speak(data.response);
+      } else {
+        setMessages((prev) => [...prev, { text: "No response from Bedrock.", sender: "bot", partial: false }]);
+      }
+    } catch (err) {
+      console.error(err);
+      setMessages((prev) => [...prev, { text: "Error contacting Bedrock backend.", sender: "bot", partial: false }]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <div className="app">
       <header className="app-header">
@@ -230,6 +260,16 @@ function App() {
         </div>
         
         <div className="input-form">
+          <form className="text-form" onSubmit={sendTextMessage}>
+            <input
+              type="text"
+              placeholder="Ask anything about crops, disease, or fertilizer (powered by Amazon Bedrock)"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={isSending}
+            />
+            <button type="submit" disabled={isSending}>{isSending ? "Sending..." : "Send"}</button>
+          </form>
           <button
             type="button"
             className={`voice-button ${isListening ? 'listening' : ''}`}

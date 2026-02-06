@@ -18,13 +18,17 @@ import os
 import uuid
 import json
 import random
+import boto3
+from botocore.config import Config
 from langchain.memory import ConversationBufferMemory
-from langchain_community.llms import LlamaCpp
+from langchain_community.llms import Bedrock
 from langchain.agents import initialize_agent
 
 conversations = {}
 
 WEATHER_API = "YOUR_OPENWEATHER_MAP_API"
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-sonnet-20240229-v1:0")
 
 # Load disease classification model
 disease_classes = [...]  # Omitted for brevity
@@ -103,7 +107,24 @@ def predict_image_from_path(path, model=disease_model):
     output = model(torch.unsqueeze(img, 0))
     return disease_classes[torch.argmax(output).item()]
 
-llm = LlamaCpp(model_path="models/llama-2-7b-chat.Q4_K_M.gguf", temperature=0.3, max_tokens=1024, top_p=1)
+
+def build_bedrock_llm():
+    try:
+        session = boto3.Session(region_name=AWS_REGION)
+        client = session.client(
+            "bedrock-runtime",
+            config=Config(retries={"max_attempts": 3, "mode": "standard"}),
+        )
+        return Bedrock(
+            client=client,
+            model_id=BEDROCK_MODEL_ID,
+            model_kwargs={"temperature": 0.3, "max_tokens_to_sample": 1024, "top_p": 0.9},
+        )
+    except Exception as exc:
+        raise RuntimeError(f"Unable to initialize Amazon Bedrock client: {exc}") from exc
+
+
+llm = build_bedrock_llm()
 memory = ConversationBufferMemory(memory_key="chat_history")
 tools = [general_farming_chat, get_crop_recommendation_tool, get_fertilizer_recommendation_tool]
 agent = initialize_agent(tools, llm, agent="conversational-react-description", verbose=True, memory=memory)
@@ -126,6 +147,19 @@ async def farm_assistant_endpoint(request: Request):
             yield word + ' '
             await asyncio.sleep(0.05)
     return StreamingResponse(chat_stream(), media_type="text/plain")
+
+
+@app.post('/api/bedrock-chat')
+async def bedrock_chat(request: Request):
+    payload = await request.json()
+    prompt = payload.get("query") or payload.get("prompt")
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Missing query")
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+        return {"status": "success", "response": response.content}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 @app.post('/upload-image')
 async def upload_image(file: UploadFile = File(...)):
